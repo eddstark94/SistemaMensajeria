@@ -1,4 +1,5 @@
 
+
 name: CI - Sistema de Mensajeria
 
 on:
@@ -10,6 +11,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: sistema_mensajeria
+          MYSQL_USER: app
+          MYSQL_PASSWORD: app
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_USERNAME: app
+      DB_PASSWORD: app
 
     steps:
       - name: Descargar codigo
