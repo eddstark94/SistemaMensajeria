@@ -1,6 +1,8 @@
+
 package com.espe.sistemamensajeria.service;
 
 import com.espe.sistemamensajeria.entity.Cliente;
+import com.espe.sistemamensajeria.exception.ResourceNotFoundException;
 import com.espe.sistemamensajeria.repository.ClienteRepository;
 import org.springframework.stereotype.Service;
 
@@ -33,10 +35,9 @@ public class ClienteService {
 
     // Actualizar cliente
     public Cliente actualizar(Long id, Cliente clienteActualizado) {
-
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Cliente no encontrado"));
+                        new ResourceNotFoundException("Cliente no encontrado"));
 
         cliente.setNombre(clienteActualizado.getNombre());
         cliente.setCorreo(clienteActualizado.getCorreo());
@@ -48,6 +49,10 @@ public class ClienteService {
 
     // Eliminar cliente
     public void eliminar(Long id) {
-        clienteRepository.deleteById(id);
+        Cliente cliente = clienteRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Cliente no encontrado"));
+
+        clienteRepository.delete(cliente);
     }
 }

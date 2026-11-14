@@ -1,8 +1,13 @@
+
 package com.espe.sistemamensajeria.service;
 
 import com.espe.sistemamensajeria.entity.Entrega;
+import com.espe.sistemamensajeria.exception.BusinessRuleException;
+import com.espe.sistemamensajeria.exception.ResourceNotFoundException;
 import com.espe.sistemamensajeria.repository.EntregaRepository;
 import org.springframework.stereotype.Service;
+import com.espe.sistemamensajeria.entity.Repartidor;
+import com.espe.sistemamensajeria.exception.BusinessRuleException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +27,33 @@ public class EntregaService {
         return entregaRepository.findAll();
     }
 
+    // Listar entregas pendientes
+    public List<Entrega> listarPendientes() {
+        return entregaRepository.findByEstadoIgnoreCase("PENDIENTE");
+    }
+
+    // Asignar un repartidor a una entrega existente
+    public Entrega asignarRepartidor(Long entregaId, Repartidor repartidor) {
+
+        Entrega entrega = entregaRepository.findById(entregaId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Entrega no encontrada"));
+
+        if (!Boolean.TRUE.equals(repartidor.getDisponible())) {
+            throw new BusinessRuleException(
+                    "El repartidor no está disponible");
+        }
+
+        if ("ENTREGADO".equalsIgnoreCase(entrega.getEstado())) {
+            throw new BusinessRuleException(
+                    "No se puede asignar un repartidor a una entrega completada");
+        }
+
+        entrega.setRepartidor(repartidor);
+
+        return entregaRepository.save(entrega);
+    }
+
     // Buscar una entrega por ID
     public Optional<Entrega> buscarPorId(Long id) {
         return entregaRepository.findById(id);
@@ -33,16 +65,16 @@ public class EntregaService {
         // Estado inicial por defecto
         if (entrega.getEstado() == null ||
                 entrega.getEstado().isBlank()) {
-
             entrega.setEstado("PENDIENTE");
         }
 
-        // No permitir asignar repartidores no disponibles
+        // Validar disponibilidad del repartidor
         if (entrega.getRepartidor() != null &&
-                !entrega.getRepartidor().getDisponible()) {
+                !Boolean.TRUE.equals(
+                        entrega.getRepartidor().getDisponible())) {
 
-            throw new RuntimeException(
-                    "El repartidor no esta disponible");
+            throw new BusinessRuleException(
+                    "El repartidor no está disponible");
         }
 
         return entregaRepository.save(entrega);
@@ -53,32 +85,50 @@ public class EntregaService {
 
         Entrega entrega = entregaRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Entrega no encontrada"));
+
+        if (estadoNuevo == null || estadoNuevo.isBlank()) {
+            throw new BusinessRuleException(
+                    "El nuevo estado es obligatorio");
+        }
+
+        estadoNuevo = estadoNuevo.trim().toUpperCase();
 
         String estadoActual = entrega.getEstado();
 
-        // No permitir modificar una entrega ya completada
-        if ("ENTREGADO".equalsIgnoreCase(estadoActual)) {
+        // Validar que el estado sea permitido
+        if (!estadoNuevo.equals("PENDIENTE") &&
+                !estadoNuevo.equals("EN_CAMINO") &&
+                !estadoNuevo.equals("ENTREGADO")) {
 
-            throw new RuntimeException(
+            throw new BusinessRuleException(
+                    "El estado indicado no es válido");
+        }
+
+        // Validar las transiciones permitidas
+        if ("ENTREGADO".equals(estadoActual)) {
+            throw new BusinessRuleException(
                     "La entrega ya fue completada");
         }
 
-        // No permitir pasar directamente de
-        // PENDIENTE a ENTREGADO
-        if ("PENDIENTE".equalsIgnoreCase(estadoActual)
-                && "ENTREGADO".equalsIgnoreCase(estadoNuevo)) {
+        if ("PENDIENTE".equals(estadoActual) &&
+                !"EN_CAMINO".equals(estadoNuevo)) {
 
-            throw new RuntimeException(
-                    "Debe pasar por EN_CAMINO antes de ENTREGADO");
+            throw new BusinessRuleException(
+                    "Una entrega pendiente debe pasar a EN_CAMINO");
         }
 
-        // Registrar fecha automáticamente al entregar
-        if ("ENTREGADO".equalsIgnoreCase(estadoNuevo)) {
+        if ("EN_CAMINO".equals(estadoActual) &&
+                !"ENTREGADO".equals(estadoNuevo)) {
 
-            entrega.setFechaEntrega(
-                    LocalDateTime.now());
+            throw new BusinessRuleException(
+                    "Una entrega en camino debe pasar a ENTREGADO");
+        }
+
+        // Registrar fecha al completar la entrega
+        if ("ENTREGADO".equals(estadoNuevo)) {
+            entrega.setFechaEntrega(LocalDateTime.now());
         }
 
         entrega.setEstado(estadoNuevo);
@@ -88,6 +138,12 @@ public class EntregaService {
 
     // Eliminar entrega
     public void eliminar(Long id) {
-        entregaRepository.deleteById(id);
+
+        Entrega entrega = entregaRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Entrega no encontrada"));
+
+        entregaRepository.delete(entrega);
     }
 }

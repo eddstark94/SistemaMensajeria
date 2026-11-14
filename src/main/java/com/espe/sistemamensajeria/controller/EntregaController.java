@@ -57,6 +57,18 @@ public class EntregaController {
         return ResponseEntity.ok(lista);
     }
 
+    // Consultar entregas pendientes
+    @GetMapping("/pendientes")
+    public ResponseEntity<List<EntregaResponseDTO>> listarPendientes() {
+
+        List<EntregaResponseDTO> entregas = entregaService.listarPendientes()
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
+
+        return ResponseEntity.ok(entregas);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<EntregaResponseDTO> obtenerPorId(@PathVariable Long id) {
         Entrega entrega = entregaService.buscarPorId(id)
@@ -70,6 +82,18 @@ public class EntregaController {
             @PathVariable Long id,
             @RequestParam String estado) {
         Entrega actualizada = entregaService.actualizarEstado(id, estado);
+        return ResponseEntity.ok(toResponseDTO(actualizada));
+    }
+
+    // Asignar un repartidor a una entrega existente
+    @PatchMapping("/{id}/repartidor/{repartidorId}")
+    public ResponseEntity<EntregaResponseDTO> asignarRepartidor(
+            @PathVariable Long id,
+            @PathVariable Long repartidorId) {
+        Repartidor repartidor = repartidorService.buscarPorId(repartidorId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Repartidor no encontrado con ID: " + repartidorId));
+        Entrega actualizada = entregaService.asignarRepartidor(id, repartidor);
         return ResponseEntity.ok(toResponseDTO(actualizada));
     }
 

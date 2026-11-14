@@ -1,6 +1,8 @@
+
 package com.espe.sistemamensajeria.service;
 
 import com.espe.sistemamensajeria.entity.Repartidor;
+import com.espe.sistemamensajeria.exception.ResourceNotFoundException;
 import com.espe.sistemamensajeria.repository.RepartidorRepository;
 import org.springframework.stereotype.Service;
 
@@ -37,7 +39,8 @@ public class RepartidorService {
 
         Repartidor repartidor = repartidorRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Repartidor no encontrado"));
+                        new ResourceNotFoundException(
+                                "Repartidor no encontrado"));
 
         repartidor.setNombre(repartidorActualizado.getNombre());
         repartidor.setTelefono(repartidorActualizado.getTelefono());
@@ -46,8 +49,15 @@ public class RepartidorService {
 
         return repartidorRepository.save(repartidor);
     }
+
     // Eliminar repartidor
     public void eliminar(Long id) {
-        repartidorRepository.deleteById(id);
+
+        Repartidor repartidor = repartidorRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Repartidor no encontrado"));
+
+        repartidorRepository.delete(repartidor);
     }
 }
